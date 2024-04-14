@@ -9,8 +9,8 @@ tokenizer_script = """#!/bin/bash
 #SBATCH --cpus-per-task=8
 #SBATCH --mem={gb}G
 #SBATCH --time={time}
-#SBATCH --output=run_tokenizer%j.out
-#SBATCH --error=run_tokenizer%j.err
+#SBATCH --output=sbatch/run_tokenizer%j.out
+#SBATCH --error=sbatch/run_tokenizer%j.err
 
 # Optional: activate a conda environment to use for this job
 eval "$(conda shell.bash hook)"
@@ -35,7 +35,7 @@ def main():
 
     if args.command == "tokenizer":
         with open("tmp.sh", "w") as f:
-            f.write(tokenizer_script.format(input=args.input, output=args.output, vocab_size=args.vocab_size, special_tokens=args.special_tokens))
+            f.write(tokenizer_script.format(input=args.input, output=args.output, vocab_size=str(args.vocab_size), special_tokens=str(args.special_tokens), time=args.time, gb=args.gb))
         os.system("sbatch tmp.sh")
         os.remove("tmp.sh")
     else:
