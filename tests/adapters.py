@@ -43,7 +43,10 @@ def run_positionwise_feedforward(
     # You can also manually assign the weights
     # my_ffn.w1.weight.data = weights["w1.weight"]
     # my_ffn.w2.weight.data = weights["w2.weight"]
-    raise NotImplementedError
+    from cs336_basics.transformer import FFN
+    ffn = FFN(d_model, d_ff)
+    ffn.load_state_dict(weights)
+    return ffn(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -85,7 +88,8 @@ def run_scaled_dot_product_attention(
         with the output of running your scaled dot product attention
         implementation with the provided key, query, and value tensors.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import scaled_dot_product_attention
+    return scaled_dot_product_attention(Q, K, V, mask, pdrop)
 
 
 def run_multihead_self_attention(
@@ -135,7 +139,17 @@ def run_multihead_self_attention(
         torch.FloatTensor with the output of running your optimized, batched multi-headed attention
         implementation with the given QKV projection weights and input features.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import CausalMultiheadSelfAttention
+    attn = CausalMultiheadSelfAttention(d_model, num_heads, attn_pdrop)
+    weights["q_proj.weight"] = torch.cat([weights[f"q_heads.{i}.weight"] for i in range((len(weights)-1)//3)], dim=0)
+    weights["k_proj.weight"] = torch.cat([weights[f"k_heads.{i}.weight"] for i in range((len(weights)-1)//3)], dim=0)
+    weights["v_proj.weight"] = torch.cat([weights[f"v_heads.{i}.weight"] for i in range((len(weights)-1)//3)], dim=0)
+    for i in range((len(weights)-4)//3):
+        del weights[f"q_heads.{i}.weight"]
+        del weights[f"k_heads.{i}.weight"]
+        del weights[f"v_heads.{i}.weight"]
+    attn.load_state_dict(weights)
+    return attn(in_features)
 
 
 def run_transformer_block(
@@ -207,7 +221,10 @@ def run_transformer_block(
         FloatTensor of shape (batch_size, sequence_length, d_model) with the output of
         running the Transformer block on the input features.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import TransformerBlock
+    block = TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)
+    block.load_state_dict(weights)
+    return block(in_features)
 
 
 def run_transformer_lm(
@@ -287,7 +304,7 @@ def run_transformer_lm(
                 applied in the transformer block.
                 Shape is (d_model,).
             - `ln_final.weight`
-                Weights of affine transform for RMSNorm applied to the output of the final transformer block.
+                Weights of affine transform for layernorm applied to the output of the final transformer block.
                 Shape is (d_model, ).
             - `lm_head.weight`
                 Weights of the language model output embedding.
@@ -300,7 +317,10 @@ def run_transformer_lm(
         FloatTensor of shape (batch size, sequence_length, vocab_size) with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import TransformerLM
+    lm = TransformerLM(vocab_size, context_length, num_layers, d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)
+    lm.load_state_dict(weights)
+    return lm(in_indices)
 
 
 def run_rmsnorm(
@@ -314,7 +334,7 @@ def run_rmsnorm(
 
     Args:
         d_model: int
-            The dimensionality of the RMSNorm input.
+            The dimensionality of the layernorm input.
         eps: float, default is 1e-5
             A value added to the denominator for numerical stability.
         weights: dict[str, torch.FloatTensor]
@@ -329,9 +349,12 @@ def run_rmsnorm(
 
     Returns:
         FloatTensor of with the same shape as `in_features` with the output of running
-        RMSNorm of the `in_features`.
+        layernorm of the `in_features`.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import RMSNorm
+    norm = RMSNorm(d_model, eps=eps)
+    norm.load_state_dict(weights)
+    return norm(in_features)
 
 
 def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
@@ -346,7 +369,9 @@ def run_gelu(in_features: torch.FloatTensor) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of applying
         GELU to each element.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import Gelu
+    gelu = Gelu()
+    return gelu(in_features)
 
 
 def run_get_batch(
@@ -373,7 +398,8 @@ def run_get_batch(
         is the sampled input sequences, and the second tuple item is the corresponding
         language modeling labels.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import get_batch
+    return get_batch(dataset, batch_size, context_length, device)
 
 
 def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:
@@ -390,7 +416,8 @@ def run_softmax(in_features: torch.FloatTensor, dim: int) -> torch.FloatTensor:
         FloatTensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import softmax
+    return softmax(in_features, dim)
 
 
 def run_cross_entropy(inputs: torch.FloatTensor, targets: torch.LongTensor):
@@ -408,7 +435,8 @@ def run_cross_entropy(inputs: torch.FloatTensor, targets: torch.LongTensor):
     Returns:
         Tensor of shape () with the average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import cross_entropy
+    return cross_entropy(inputs, targets)
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float):
@@ -423,14 +451,16 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
     Returns:
         None
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import gradient_clipping
+    gradient_clipping(parameters, max_l2_norm)
 
 
 def get_adamw_cls() -> Type[torch.optim.Optimizer]:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import AdamW
+    return AdamW
 
 
 def run_get_lr_cosine_schedule(
@@ -463,7 +493,8 @@ def run_get_lr_cosine_schedule(
     Returns:
         Learning rate at the given iteration under the specified schedule.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer import learning_rate_schedule
+    return learning_rate_schedule(it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
 
 
 def run_save_checkpoint(
@@ -518,7 +549,7 @@ def get_tokenizer(
     merges: list[tuple[bytes, bytes]],
     special_tokens: Optional[list[str]] = None,
 ):
-    """Given a vocabulary, a list of merges, and a list of special tokens,
+    """Given the path to a JSON vocab, a file with BPE merges, and a list of special tokens,
     return a BPE tokenizer that uses the provided vocab, merges, and special tokens.
 
     Args:
@@ -536,7 +567,8 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
-    raise NotImplementedError
+    from cs336_basics.tokenizer import Tokenizer
+    return Tokenizer(vocab, merges, special_tokens)
 
 
 def run_train_bpe(
@@ -569,4 +601,5 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    from cs336_basics.tokenizer import train_bpe
+    return train_bpe(input_path, vocab_size, special_tokens)
