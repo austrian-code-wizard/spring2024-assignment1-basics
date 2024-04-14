@@ -41,6 +41,7 @@ def train_bpe(
     pretokens = defaultdict(int)
     for pretoken in re.findall(PAT, data):
         pretokens[pretoken] += 1
+    del data # free up memory
     logger.debug(
         "Took %s seconds to generate pretokens", round(time.time() - start_time, 3)
     )
