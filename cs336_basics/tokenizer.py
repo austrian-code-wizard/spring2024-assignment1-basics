@@ -25,7 +25,7 @@ def count_pretokens(slice):
     return result
 
 def train_bpe(
-    input_path: str, vocab_size: int, special_tokens: List[str] | None = None
+    input_path: str, vocab_size: int, special_tokens: List[str] | None = None, cores: int = 1
 ):
     if special_tokens is None:
         special_tokens = []
@@ -39,15 +39,14 @@ def train_bpe(
 
     start_time = time.time()
     pretokens = defaultdict(int)
-    if len(data) < 1e7:
+    if len(data) < 1e7 or cores == 1:
         logger.debug("Generating pretokens...")
         pretokens = count_pretokens(data)
     else:
-        num_cores = multiprocessing.cpu_count()
-        logger.debug(f"Generating pretokens ({num_cores} cores)...")
+        logger.debug(f"Generating pretokens ({cores} cores)...")
         data = data.split("\n")
-        data_slices = ["\n".join(data[i::num_cores]) for i in range(num_cores)]
-        pool = multiprocessing.Pool(num_cores)
+        data_slices = ["\n".join(data[i::cores]) for i in range(cores)]
+        pool = multiprocessing.Pool(cores)
         results = pool.map(count_pretokens, data_slices)
         for result in results:
             for t, count in result.items():
@@ -235,8 +234,8 @@ class Tokenizer:
         )
 
     @classmethod
-    def train_from_file(cls, filepath: str, vocab_size: int, special_tokens: List[str]):
-        vocab, merges = train_bpe(filepath, vocab_size, special_tokens)
+    def train_from_file(cls, filepath: str, vocab_size: int, special_tokens: List[str], cores: int = 1):
+        vocab, merges = train_bpe(filepath, vocab_size, special_tokens, cores=cores)
         return cls(vocab, merges, special_tokens)
 
     def encode(self, text: str) -> List[int]:
@@ -308,12 +307,15 @@ if __name__ == "__main__":
     parser.add_argument(
         "--overwrite", action="store_true", default=True, help="Overwrite the existing tokenizer state"
     )
+    parser.add_argument(
+        "--cores", type=int, default=16, help="Number of cores to use for pretokenization"
+    )
     args = parser.parse_args()
 
     logger.setLevel(args.log_level.upper())
 
     tokenizer = Tokenizer.train_from_file(
-        args.input_path, args.vocab_size, args.special_tokens
+        args.input_path, args.vocab_size, args.special_tokens, args.cores
     )
     tokenizer.save(args.output_path, overwrite=args.overwrite)
     logger.info("Tokenizer training completed and saved to %s", args.output_path)
