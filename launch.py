@@ -68,7 +68,7 @@ def main():
                     name=args.name,
                 )
             )
-        os.system("sbatch tmp.sh")
+        os.system("sbatch tmp.sh --partition batch")
         os.remove("tmp.sh")
         print("Launched tokenizer job")
     else:
