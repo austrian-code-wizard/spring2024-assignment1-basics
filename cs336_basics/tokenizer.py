@@ -27,8 +27,6 @@ def train_bpe(
         special_tokens = []
 
     start_time = time.time()
-
-    start_time = time.time()
     logger.debug("Generating pretokens...")
     pretokens = defaultdict(int)
     with open(input_path) as f:
@@ -38,6 +36,8 @@ def train_bpe(
             for pretoken in re.finditer(PAT, line, concurrent=True):
                 pretokens[pretoken] += 1
             first = False
+            if len(pretokens) % 10000 == 0:
+                logger.debug("Generated %s pretokens. Continuing...", len(pretokens))
     logger.debug(
         "Took %s seconds to generate pretokens", round(time.time() - start_time, 3)
     )
