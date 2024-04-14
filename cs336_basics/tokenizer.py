@@ -12,20 +12,17 @@ from collections import defaultdict
 from typing import List, Dict, Tuple, Iterable, Iterator
 
 # setup logging
-logging.basicConfig(format='%(asctime)s (%(levelname)s): %(message)s')
+logging.basicConfig(format="%(asctime)s (%(levelname)s): %(message)s")
 logger = logging.getLogger(__name__)
 
 # Pretokenization regex
 PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
-def count_pretokens(slice):
-    result = defaultdict(int)
-    for pretoken in re.findall(PAT, slice):
-        result[pretoken] += 1
-    return result
 
 def train_bpe(
-    input_path: str, vocab_size: int, special_tokens: List[str] | None = None, cores: int = 1
+    input_path: str,
+    vocab_size: int,
+    special_tokens: List[str] | None = None
 ):
     if special_tokens is None:
         special_tokens = []
@@ -35,25 +32,18 @@ def train_bpe(
     logger.debug("Loading data from disk...")
     with open(input_path) as f:
         data = f.read()
-    logger.debug("Took %s seconds to load data from disk", round(time.time() - start_time, 3))
+    logger.debug(
+        "Took %s seconds to load data from disk", round(time.time() - start_time, 3)
+    )
 
     start_time = time.time()
+    logger.debug("Generating pretokens...")
     pretokens = defaultdict(int)
-    if len(data) < 1e7 or cores == 1:
-        logger.debug("Generating pretokens...")
-        pretokens = count_pretokens(data)
-    else:
-        logger.debug(f"Generating pretokens ({cores} cores)...")
-        data = data.split("\n")
-        data_slices = ["\n".join(data[i::cores]) for i in range(cores)]
-        pool = multiprocessing.Pool(cores)
-        results = pool.map(count_pretokens, data_slices)
-        for result in results:
-            for t, count in result.items():
-                pretokens[t] += count
-        pool.close()
-        pool.join()
-    logger.debug("Took %s seconds to generate pretokens", round(time.time() - start_time, 3))
+    for pretoken in re.findall(PAT, data):
+        pretokens[pretoken] += 1
+    logger.debug(
+        "Took %s seconds to generate pretokens", round(time.time() - start_time, 3)
+    )
 
     start_time = time.time()
     logger.debug("Creating vocab...")
@@ -72,7 +62,9 @@ def train_bpe(
         tuple(bytes((i,)) for i in pretoken.encode("utf-8")): v
         for pretoken, v in pretokens.items()
     }
-    logger.debug("Took %s seconds to encode pretokens", round(time.time() - start_time, 3))
+    logger.debug(
+        "Took %s seconds to encode pretokens", round(time.time() - start_time, 3)
+    )
 
     start_time = time.time()
     logger.debug("Calculating pairwise frequencies...")
@@ -81,11 +73,14 @@ def train_bpe(
         for i in range(len(pretoken) - 1):
             pair = pretoken[i : i + 2]
             pairwise_frequencies[pair] += pretokens[pretoken]
-    pairwise_frequencies_heap = [(-freq, token) for token, freq in pairwise_frequencies.items()]
+    pairwise_frequencies_heap = [
+        (-freq, token) for token, freq in pairwise_frequencies.items()
+    ]
     heapq.heapify(pairwise_frequencies_heap)
-    
+
     logger.debug(
-        "Took %s seconds to calculate pairwise frequencies", round(time.time() - start_time, 3)
+        "Took %s seconds to calculate pairwise frequencies",
+        round(time.time() - start_time, 3),
     )
 
     merges = []
@@ -111,7 +106,7 @@ def train_bpe(
                 top_token = token
                 top_freq = freq
                 continue
-            
+
             # Break if the frequency is not the same as the top frequency
             if freq != top_freq:
                 heapq.heappush(pairwise_frequencies_heap, (freq, token))
@@ -230,11 +225,15 @@ class Tokenizer:
         with open(merges_path, "wb+") as f:
             pickle.dump(self._merges, f)
         logger.debug(
-            "Took %s seconds to save tokenizer state to %s", round(time.time() - start_time, 3), path
+            "Took %s seconds to save tokenizer state to %s",
+            round(time.time() - start_time, 3),
+            path,
         )
 
     @classmethod
-    def train_from_file(cls, filepath: str, vocab_size: int, special_tokens: List[str], cores: int = 1):
+    def train_from_file(
+        cls, filepath: str, vocab_size: int, special_tokens: List[str], cores: int = 1
+    ):
         vocab, merges = train_bpe(filepath, vocab_size, special_tokens, cores=cores)
         return cls(vocab, merges, special_tokens)
 
@@ -305,17 +304,17 @@ if __name__ == "__main__":
         "--log_level", type=str, default="info", help="Log level (default: info)"
     )
     parser.add_argument(
-        "--overwrite", action="store_true", default=True, help="Overwrite the existing tokenizer state"
-    )
-    parser.add_argument(
-        "--cores", type=int, default=16, help="Number of cores to use for pretokenization"
+        "--overwrite",
+        action="store_true",
+        default=True,
+        help="Overwrite the existing tokenizer state",
     )
     args = parser.parse_args()
 
     logger.setLevel(args.log_level.upper())
 
     tokenizer = Tokenizer.train_from_file(
-        args.input_path, args.vocab_size, args.special_tokens, args.cores
+        args.input_path, args.vocab_size, args.special_tokens
     )
     tokenizer.save(args.output_path, overwrite=args.overwrite)
     logger.info("Tokenizer training completed and saved to %s", args.output_path)
