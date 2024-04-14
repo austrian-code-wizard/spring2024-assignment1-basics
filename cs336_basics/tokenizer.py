@@ -232,9 +232,9 @@ class Tokenizer:
 
     @classmethod
     def train_from_file(
-        cls, filepath: str, vocab_size: int, special_tokens: List[str], cores: int = 1
+        cls, filepath: str, vocab_size: int, special_tokens: List[str]
     ):
-        vocab, merges = train_bpe(filepath, vocab_size, special_tokens, cores=cores)
+        vocab, merges = train_bpe(filepath, vocab_size, special_tokens)
         return cls(vocab, merges, special_tokens)
 
     def encode(self, text: str) -> List[int]:
