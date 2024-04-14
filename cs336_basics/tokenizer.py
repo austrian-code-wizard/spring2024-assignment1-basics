@@ -1,6 +1,7 @@
 import os
 import ast
 import time
+import heapq
 import pickle
 import logging
 import argparse
@@ -81,7 +82,9 @@ def train_bpe(
         for i in range(len(pretoken) - 1):
             pair = pretoken[i : i + 2]
             pairwise_frequencies[pair] += pretokens[pretoken]
-    pairwise_frequencies = {k: v for k, v in sorted(pairwise_frequencies.items(), key=lambda x: x[1])}
+    pairwise_frequencies_heap = [(-freq, token) for token, freq in pairwise_frequencies.items()]
+    heapq.heapify(pairwise_frequencies_heap)
+    
     logger.debug(
         "Took %s seconds to calculate pairwise frequencies", round(time.time() - start_time, 3)
     )
@@ -91,22 +94,48 @@ def train_bpe(
     start_time = time.time()
     logger.debug("Training BPE...")
     for _ in tqdm(range(vocab_size - len(vocab))):
-        if len(pairwise_frequencies) == 0:
+        if len(pairwise_frequencies_heap) == 0:
             break
 
-        top_tokens, top_freq = pairwise_frequencies.popitem()
-        while len(pairwise_frequencies) > 0:
-            token, freq = pairwise_frequencies.popitem()
-            if freq < top_freq:
-                pairwise_frequencies[token] = freq
-                break
-            top_token = max(top_tokens, token)
+        top_token = None
+        top_freq = None
+        repush_tokens = []
+        while len(pairwise_frequencies_heap) > 0:
+            freq, token = heapq.heappop(pairwise_frequencies_heap)
 
-        top_token = max(top_tokens)
+            # Ignore inaccurate frequencies from lazy updates
+            if pairwise_frequencies[token] != -freq:
+                continue
+
+            # Update on first iteration
+            if top_token is None:
+                top_token = token
+                top_freq = freq
+                continue
+            
+            # Break if the frequency is not the same as the top frequency
+            if freq != top_freq:
+                heapq.heappush(pairwise_frequencies_heap, (freq, token))
+                break
+
+            # Update top token if lexicographically larger
+            if token > top_token:
+                repush_tokens.append(top_token)
+                top_token = token
+            else:
+                repush_tokens.append(token)
+
+        for token in repush_tokens:
+            heapq.heappush(pairwise_frequencies_heap, (top_freq, token))
+
+        if top_token is None:
+            break
+
         merges.append(top_token)
         top_token_joined = top_token[0] + top_token[1]
         vocab[len(vocab)] = top_token_joined
         new_pretokens = {}
+        changed_keys = []
         for pretoken in pretokens:
             cur_idx = 0
             pretoken_count = pretokens[pretoken]
@@ -118,12 +147,14 @@ def train_bpe(
                         pairwise_frequencies[
                             pretoken[cur_idx - 1 : cur_idx + 1]
                         ] -= pretoken_count
+                        changed_keys.append(pretoken[cur_idx - 1 : cur_idx + 1])
 
                     # Decrease count if there's a next token after the merge pair
                     if cur_idx + 2 < len(pretoken):
                         pairwise_frequencies[
                             pretoken[cur_idx + 1 : cur_idx + 3]
                         ] -= pretoken_count
+                        changed_keys.append(pretoken[cur_idx + 1 : cur_idx + 3])
 
                     pretoken = (
                         *pretoken[:cur_idx],
@@ -135,18 +166,19 @@ def train_bpe(
                         pairwise_frequencies[
                             pretoken[cur_idx - 1 : cur_idx + 1]
                         ] += pretoken_count
+                        changed_keys.append(pretoken[cur_idx - 1 : cur_idx + 1])
                     if cur_idx + 1 < len(pretoken):
                         pairwise_frequencies[
                             pretoken[cur_idx : cur_idx + 2]
                         ] += pretoken_count
+                        changed_keys.append(pretoken[cur_idx : cur_idx + 2])
                 cur_idx += 1
             new_pretokens[pretoken] = pretoken_count
         del pairwise_frequencies[top_token]
-        pairwise_frequencies = {
-            k: v
-            for k, v in sorted(pairwise_frequencies.items(), key=lambda x: x[1])
-        }
         pretokens = new_pretokens
+
+        for key in changed_keys:
+            heapq.heappush(pairwise_frequencies_heap, (-pairwise_frequencies[key], key))
     logger.debug("Took %s seconds to train BPE", round(time.time() - start_time, 3))
     return vocab, merges
 
