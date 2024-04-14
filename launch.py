@@ -38,6 +38,11 @@ def main():
             f.write(tokenizer_script.format(input=args.input, output=args.output, vocab_size=str(args.vocab_size), special_tokens=str(args.special_tokens), time=args.time, gb=args.gb))
         os.system("sbatch tmp.sh")
         os.remove("tmp.sh")
+        print("Launched tokenizer job")
     else:
         print("Invalid command")
         exit(1)
+
+
+if __name__ == "__main__":
+    main()
