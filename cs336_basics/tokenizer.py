@@ -28,19 +28,16 @@ def train_bpe(
 
     start_time = time.time()
 
-    logger.debug("Loading data from disk...")
-    with open(input_path) as f:
-        data = f.read()
-    logger.debug(
-        "Took %s seconds to load data from disk", round(time.time() - start_time, 3)
-    )
-
     start_time = time.time()
     logger.debug("Generating pretokens...")
     pretokens = defaultdict(int)
-    for pretoken in re.finditer(PAT, data, concurrent=True):
-        pretokens[pretoken] += 1
-    del data # free up memory
+    with open(input_path) as f:
+        first = True
+        while line := f.readline():
+            line = "\n" + line if not first else line
+            for pretoken in re.finditer(PAT, line, concurrent=True):
+                pretokens[pretoken] += 1
+            first = False
     logger.debug(
         "Took %s seconds to generate pretokens", round(time.time() - start_time, 3)
     )
@@ -261,8 +258,7 @@ class Tokenizer:
             if chunk in self._special_tokens:
                 ids.append(self._inv_vocab[chunk.encode("utf-8")])
                 continue
-            pretokens = re.findall(PAT, chunk)
-            for pretoken in pretokens:
+            for pretoken in re.finditer(PAT, chunk):
                 pretoken = tuple(bytes((i,)) for i in pretoken.encode("utf-8"))
                 for pair in self._merges:
                     cur_idx = 0
