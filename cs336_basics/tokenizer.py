@@ -1,5 +1,7 @@
 import os
+import ast
 import pickle
+import argparse
 import regex as re
 from collections import defaultdict
 from typing import List, Dict, Tuple, Iterable, Iterator
@@ -15,11 +17,8 @@ def train_bpe(
 
     pretokens = defaultdict(int)
     with open(input_path) as f:
-        first = True
-        while line := f.readline():
-            for t in re.findall(PAT, ("\n" if not first else "") + line):
-                pretokens[t] += 1
-            first = False
+        for t in re.findall(PAT, f.read()):
+            pretokens[t] += 1
 
     vocab = {
         i: token
@@ -126,12 +125,13 @@ class Tokenizer:
         return cls(vocab, merges, special_tokens)
 
     def save(self, path: str = ".", prefix: str = "", overwrite: bool = False):
-        vocab_path = os.path.join([path, prefix + "vocab.pkl"])
+        os.makedirs(path, exist_ok=True)
+        vocab_path = os.path.join(path, prefix + "vocab.pkl")
         if os.path.exists(vocab_path) and not overwrite:
             raise ValueError(
                 f"Vocab file {vocab_path} already exists. Set overwrite flag to true if necessary."
             )
-        merges_path = os.path.join([path, prefix + "merges.pkl"])
+        merges_path = os.path.join(path, prefix + "merges.pkl")
         if os.path.exists(merges_path) and not overwrite:
             raise ValueError(
                 f"Merge file {merges_path} already exists. Set overwrite flag to true if necessary."
@@ -140,6 +140,11 @@ class Tokenizer:
             pickle.dump(self._vocab, f)
         with open(merges_path, "wb+") as f:
             pickle.dump(self._merges, f)
+
+    @classmethod
+    def train_from_file(cls, filepath: str, vocab_size: int, special_tokens: List[str]):
+        vocab, merges = train_bpe(filepath, vocab_size, special_tokens)
+        return cls(vocab, merges, special_tokens)
 
     def encode(self, text: str) -> List[int]:
         if self._special_tokens:
@@ -192,3 +197,22 @@ class Tokenizer:
         for id in ids:
             output += self._vocab[id]
         return output.decode("utf-8", errors="replace")
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Train tokenizer")
+    parser.add_argument("--input_path", type=str, help="Path to the input file")
+    parser.add_argument(
+        "--output_path", type=str, help="Path to save the tokenizer state"
+    )
+    parser.add_argument("--vocab_size", type=int, help="Size of the vocabulary")
+    parser.add_argument(
+        "--special_tokens", type=ast.literal_eval, help="List of special tokens"
+    )
+    args = parser.parse_args()
+
+    tokenizer = Tokenizer.train_from_file(
+        args.input_path, args.vocab_size, args.special_tokens
+    )
+    tokenizer.save(args.output_path)
+    print("Tokenizer training completed and saved to", args.output_path)
