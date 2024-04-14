@@ -7,7 +7,6 @@ import logging
 import argparse
 import regex as re
 from tqdm import tqdm
-import multiprocessing
 from collections import defaultdict
 from typing import List, Dict, Tuple, Iterable, Iterator
 
@@ -39,7 +38,7 @@ def train_bpe(
     start_time = time.time()
     logger.debug("Generating pretokens...")
     pretokens = defaultdict(int)
-    for pretoken in re.findall(PAT, data):
+    for pretoken in re.findall(PAT, data, concurrent=True):
         pretokens[pretoken] += 1
     del data # free up memory
     logger.debug(

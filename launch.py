@@ -6,6 +6,7 @@ tokenizer_script = """#!/bin/bash
 #SBATCH --job-name=run_tokenizer
 #SBATCH --partition=batch
 #SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
 #SBATCH --mem={gb}G
 #SBATCH --time={time}
 #SBATCH --output=sbatch/{name}.out
