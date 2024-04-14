@@ -81,6 +81,7 @@ def train_bpe(
         for i in range(len(pretoken) - 1):
             pair = pretoken[i : i + 2]
             pairwise_frequencies[pair] += pretokens[pretoken]
+    pairwise_frequencies = {k: v for k, v in sorted(pairwise_frequencies.items(), key=lambda x: x[1])}
     logger.debug(
         "Took %s seconds to calculate pairwise frequencies", round(time.time() - start_time, 3)
     )
@@ -90,14 +91,17 @@ def train_bpe(
     start_time = time.time()
     logger.debug("Training BPE...")
     for _ in tqdm(range(vocab_size - len(vocab))):
-        top_tokens = []
-        top_freq = -1
-        for token, freq in pairwise_frequencies.items():
-            if freq == top_freq:
-                top_tokens.append(token)
-            elif freq > top_freq:
-                top_tokens = [token]
-                top_freq = freq
+        if len(pairwise_frequencies) == 0:
+            break
+
+        top_tokens, top_freq = pairwise_frequencies.popitem()
+        while len(pairwise_frequencies) > 0:
+            token, freq = pairwise_frequencies.popitem()
+            if freq < top_freq:
+                pairwise_frequencies[token] = freq
+                break
+            top_token = max(top_tokens, token)
+
         top_token = max(top_tokens)
         merges.append(top_token)
         top_token_joined = top_token[0] + top_token[1]
@@ -138,6 +142,10 @@ def train_bpe(
                 cur_idx += 1
             new_pretokens[pretoken] = pretoken_count
         del pairwise_frequencies[top_token]
+        pairwise_frequencies = {
+            k: v
+            for k, v in sorted(pairwise_frequencies.items(), key=lambda x: x[1])
+        }
         pretokens = new_pretokens
     logger.debug("Took %s seconds to train BPE", round(time.time() - start_time, 3))
     return vocab, merges
