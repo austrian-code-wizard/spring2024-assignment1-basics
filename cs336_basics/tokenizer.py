@@ -36,8 +36,6 @@ def train_bpe(
             for pretoken in re.finditer(PAT, line, concurrent=True):
                 pretokens[pretoken.group(0)] += 1
             first = False
-            if len(pretokens) % 10000 == 0:
-                logger.debug("Generated %s pretokens. (e.g {}) Continuing...", len(pretokens))
     logger.debug(
         "Took %s seconds to generate pretokens", round(time.time() - start_time, 3)
     )
