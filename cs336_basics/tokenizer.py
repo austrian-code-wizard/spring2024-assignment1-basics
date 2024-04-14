@@ -57,6 +57,12 @@ def train_bpe(
         tuple(bytes((i,)) for i in pretoken.encode("utf-8")): v
         for pretoken, v in pretokens.items()
     }
+
+    bytes_2_pretokens = defaultdict(set)
+    for pretoken in pretokens:
+        for byte in pretoken:
+            bytes_2_pretokens[byte].add(pretoken)
+
     logger.debug(
         "Took %s seconds to encode pretokens", round(time.time() - start_time, 3)
     )
@@ -123,11 +129,13 @@ def train_bpe(
         merges.append(top_token)
         top_token_joined = top_token[0] + top_token[1]
         vocab[len(vocab)] = top_token_joined
-        new_pretokens = {}
         changed_keys = []
-        for pretoken in pretokens:
+        for pretoken in (bytes_2_pretokens[top_token[0]] & bytes_2_pretokens[top_token[1]]):
+            if pretoken not in pretokens:
+                continue
             cur_idx = 0
             pretoken_count = pretokens[pretoken]
+            del pretokens[pretoken]
             while cur_idx < len(pretoken) - 1:
                 if pretoken[cur_idx : cur_idx + 2] == top_token:
 
@@ -162,9 +170,10 @@ def train_bpe(
                         ] += pretoken_count
                         changed_keys.append(pretoken[cur_idx : cur_idx + 2])
                 cur_idx += 1
-            new_pretokens[pretoken] = pretoken_count
+            pretokens[pretoken] = pretoken_count
+            for byte in pretoken:
+                bytes_2_pretokens[byte].add(pretoken)
         del pairwise_frequencies[top_token]
-        pretokens = new_pretokens
 
         for key in changed_keys:
             heapq.heappush(pairwise_frequencies_heap, (-pairwise_frequencies[key], key))
