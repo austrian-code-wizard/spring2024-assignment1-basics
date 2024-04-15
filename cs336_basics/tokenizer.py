@@ -27,15 +27,17 @@ def train_bpe(
         special_tokens = []
 
     start_time = time.time()
+    logger.debug("Loading file...")
+    with open(input_path) as f:
+        data = f.read()
+    logger.debug("Took %s seconds to load file", round(time.time() - start_time, 3))
+
+    start_time = time.time()
     logger.debug("Generating pretokens...")
     pretokens = defaultdict(int)
-    with open(input_path) as f:
-        first = True
-        while line := f.readline():
-            line = "\n" + line if not first else line
-            for pretoken in re.finditer(PAT, line, concurrent=True):
-                pretokens[pretoken.group(0)] += 1
-            first = False
+    for pretoken in re.finditer(PAT, data, concurrent=True):
+        pretokens[pretoken.group(0)] += 1
+    del data
     logger.debug(
         "Took %s seconds to generate pretokens", round(time.time() - start_time, 3)
     )
