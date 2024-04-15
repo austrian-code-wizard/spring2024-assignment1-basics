@@ -4,7 +4,7 @@ import ast
 
 tokenizer_script = """#!/bin/bash
 #SBATCH --job-name=run_tokenizer
-#SBATCH --partition=batch
+#SBATCH --partition=batch-cpu
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem={gb}G
@@ -68,7 +68,7 @@ def main():
                     name=args.name,
                 )
             )
-        os.system("sbatch tmp.sh --partition batch")
+        os.system("sbatch tmp.sh")
         os.remove("tmp.sh")
         print("Launched tokenizer job")
     else:
