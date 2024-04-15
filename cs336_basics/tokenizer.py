@@ -10,6 +10,8 @@ from tqdm import tqdm
 from collections import defaultdict
 from typing import List, Dict, Tuple, Iterable, Iterator
 
+from cs336_basics.utils import timed_block
+
 # setup logging
 logging.basicConfig(format="%(asctime)s (%(levelname)s): %(message)s")
 logger = logging.getLogger(__name__)
@@ -19,167 +21,148 @@ PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s
 
 
 def train_bpe(
-    input_path: str,
-    vocab_size: int,
-    special_tokens: List[str] | None = None
+    input_path: str, vocab_size: int, special_tokens: List[str] | None = None
 ):
     if special_tokens is None:
         special_tokens = []
 
-    start_time = time.time()
-    logger.debug("Loading file...")
-    with open(input_path) as f:
-        data = f.read()
-    logger.debug("Took %s seconds to load file", round(time.time() - start_time, 3))
+    with timed_block("loading file", logger):
+        with open(input_path) as f:
+            data = f.read()
 
-    start_time = time.time()
-    logger.debug("Generating pretokens...")
-    pretokens = defaultdict(int)
-    for pretoken in re.finditer(PAT, data, concurrent=True):
-        pretokens[pretoken.group(0)] += 1
-    del data
-    logger.debug(
-        "Took %s seconds to generate pretokens", round(time.time() - start_time, 3)
-    )
+    with timed_block("generating pretokens", logger):
+        pretokens = defaultdict(int)
+        for pretoken in re.finditer(PAT, data, concurrent=True):
+            pretokens[pretoken.group(0)] += 1
+        del data
 
-    start_time = time.time()
-    logger.debug("Creating vocab...")
-    vocab = {
-        i: token
-        for i, token in enumerate(
-            [s.encode("utf-8") for s in special_tokens]
-            + [bytes([j]) for j in range(256)]
-        )
-    }
-    logger.debug("Took %s seconds to create vocab", round(time.time() - start_time, 3))
+    with timed_block("creating vocab", logger):
+        vocab = {
+            i: token
+            for i, token in enumerate(
+                [s.encode("utf-8") for s in special_tokens]
+                + [bytes([j]) for j in range(256)]
+            )
+        }
 
-    start_time = time.time()
-    logger.debug("Encoding pretokens...")
-    pretokens = {
-        tuple(bytes((i,)) for i in pretoken.encode("utf-8")): v
-        for pretoken, v in pretokens.items()
-    }
+    with timed_block("encoding pretokens", logger):
+        pretokens = {
+            tuple(bytes((i,)) for i in pretoken.encode("utf-8")): v
+            for pretoken, v in pretokens.items()
+        }
 
-    bytes_2_pretokens = defaultdict(set)
-    for pretoken in pretokens:
-        for byte in pretoken:
-            bytes_2_pretokens[byte].add(pretoken)
-
-    logger.debug(
-        "Took %s seconds to encode pretokens", round(time.time() - start_time, 3)
-    )
-
-    start_time = time.time()
-    logger.debug("Calculating pairwise frequencies...")
-    pairwise_frequencies = defaultdict(int)
-    for pretoken in pretokens:
-        for i in range(len(pretoken) - 1):
-            pair = pretoken[i : i + 2]
-            pairwise_frequencies[pair] += pretokens[pretoken]
-    pairwise_frequencies_heap = [
-        (-freq, token) for token, freq in pairwise_frequencies.items()
-    ]
-    heapq.heapify(pairwise_frequencies_heap)
-
-    logger.debug(
-        "Took %s seconds to calculate pairwise frequencies",
-        round(time.time() - start_time, 3),
-    )
-
-    merges = []
-
-    start_time = time.time()
-    logger.debug("Training BPE...")
-    for _ in tqdm(range(vocab_size - len(vocab))):
-        if len(pairwise_frequencies_heap) == 0:
-            break
-
-        top_token = None
-        top_freq = None
-        repush_tokens = []
-        while len(pairwise_frequencies_heap) > 0:
-            freq, token = heapq.heappop(pairwise_frequencies_heap)
-
-            # Ignore inaccurate frequencies from lazy updates
-            if pairwise_frequencies[token] != -freq:
-                continue
-
-            # Update on first iteration
-            if top_token is None:
-                top_token = token
-                top_freq = freq
-                continue
-
-            # Break if the frequency is not the same as the top frequency
-            if freq != top_freq:
-                heapq.heappush(pairwise_frequencies_heap, (freq, token))
-                break
-
-            # Update top token if lexicographically larger
-            if token > top_token:
-                repush_tokens.append(top_token)
-                top_token = token
-            else:
-                repush_tokens.append(token)
-
-        for token in repush_tokens:
-            heapq.heappush(pairwise_frequencies_heap, (top_freq, token))
-
-        if top_token is None:
-            break
-
-        merges.append(top_token)
-        top_token_joined = top_token[0] + top_token[1]
-        vocab[len(vocab)] = top_token_joined
-        changed_keys = []
-        for pretoken in (bytes_2_pretokens[top_token[0]] & bytes_2_pretokens[top_token[1]]):
-            if pretoken not in pretokens:
-                continue
-            cur_idx = 0
-            pretoken_count = pretokens[pretoken]
-            del pretokens[pretoken]
-            while cur_idx < len(pretoken) - 1:
-                if pretoken[cur_idx : cur_idx + 2] == top_token:
-
-                    # Decrease count if there's a preceding token before the merge pair
-                    if cur_idx > 0:
-                        pairwise_frequencies[
-                            pretoken[cur_idx - 1 : cur_idx + 1]
-                        ] -= pretoken_count
-                        changed_keys.append(pretoken[cur_idx - 1 : cur_idx + 1])
-
-                    # Decrease count if there's a next token after the merge pair
-                    if cur_idx + 2 < len(pretoken):
-                        pairwise_frequencies[
-                            pretoken[cur_idx + 1 : cur_idx + 3]
-                        ] -= pretoken_count
-                        changed_keys.append(pretoken[cur_idx + 1 : cur_idx + 3])
-
-                    pretoken = (
-                        *pretoken[:cur_idx],
-                        top_token_joined,
-                        *pretoken[cur_idx + 2 :],
-                    )
-
-                    if cur_idx > 0:
-                        pairwise_frequencies[
-                            pretoken[cur_idx - 1 : cur_idx + 1]
-                        ] += pretoken_count
-                        changed_keys.append(pretoken[cur_idx - 1 : cur_idx + 1])
-                    if cur_idx + 1 < len(pretoken):
-                        pairwise_frequencies[
-                            pretoken[cur_idx : cur_idx + 2]
-                        ] += pretoken_count
-                        changed_keys.append(pretoken[cur_idx : cur_idx + 2])
-                cur_idx += 1
-            pretokens[pretoken] = pretoken_count
+    with timed_block("creating bytes_2_pretokens index", logger):
+        bytes_2_pretokens = defaultdict(set)
+        for pretoken in pretokens:
             for byte in pretoken:
                 bytes_2_pretokens[byte].add(pretoken)
-        del pairwise_frequencies[top_token]
 
-        for key in changed_keys:
-            heapq.heappush(pairwise_frequencies_heap, (-pairwise_frequencies[key], key))
-    logger.debug("Took %s seconds to train BPE", round(time.time() - start_time, 3))
+    with timed_block("calculating pairwise frequencies", logger):
+        pairwise_frequencies = defaultdict(int)
+        for pretoken in pretokens:
+            for i in range(len(pretoken) - 1):
+                pair = pretoken[i : i + 2]
+                pairwise_frequencies[pair] += pretokens[pretoken]
+        pairwise_frequencies_heap = [
+            (-freq, token) for token, freq in pairwise_frequencies.items()
+        ]
+        heapq.heapify(pairwise_frequencies_heap)
+
+    merges = []
+    with timed_block("training BPE", logger):
+        for _ in tqdm(range(vocab_size - len(vocab))):
+            if len(pairwise_frequencies_heap) == 0:
+                break
+
+            top_token = None
+            top_freq = None
+            repush_tokens = []
+            while len(pairwise_frequencies_heap) > 0:
+                freq, token = heapq.heappop(pairwise_frequencies_heap)
+
+                # Ignore inaccurate frequencies from lazy updates
+                if pairwise_frequencies[token] != -freq:
+                    continue
+
+                # Update on first iteration
+                if top_token is None:
+                    top_token = token
+                    top_freq = freq
+                    continue
+
+                # Break if the frequency is not the same as the top frequency
+                if freq != top_freq:
+                    heapq.heappush(pairwise_frequencies_heap, (freq, token))
+                    break
+
+                # Update top token if lexicographically larger
+                if token > top_token:
+                    repush_tokens.append(top_token)
+                    top_token = token
+                else:
+                    repush_tokens.append(token)
+
+            for token in repush_tokens:
+                heapq.heappush(pairwise_frequencies_heap, (top_freq, token))
+
+            if top_token is None:
+                break
+
+            merges.append(top_token)
+            top_token_joined = top_token[0] + top_token[1]
+            vocab[len(vocab)] = top_token_joined
+            changed_keys = []
+            for pretoken in (
+                bytes_2_pretokens[top_token[0]] & bytes_2_pretokens[top_token[1]]
+            ):
+                if pretoken not in pretokens:
+                    continue
+                cur_idx = 0
+                pretoken_count = pretokens[pretoken]
+                del pretokens[pretoken]
+                while cur_idx < len(pretoken) - 1:
+                    if pretoken[cur_idx : cur_idx + 2] == top_token:
+
+                        # Decrease count if there's a preceding token before the merge pair
+                        if cur_idx > 0:
+                            pairwise_frequencies[
+                                pretoken[cur_idx - 1 : cur_idx + 1]
+                            ] -= pretoken_count
+                            changed_keys.append(pretoken[cur_idx - 1 : cur_idx + 1])
+
+                        # Decrease count if there's a next token after the merge pair
+                        if cur_idx + 2 < len(pretoken):
+                            pairwise_frequencies[
+                                pretoken[cur_idx + 1 : cur_idx + 3]
+                            ] -= pretoken_count
+                            changed_keys.append(pretoken[cur_idx + 1 : cur_idx + 3])
+
+                        pretoken = (
+                            *pretoken[:cur_idx],
+                            top_token_joined,
+                            *pretoken[cur_idx + 2 :],
+                        )
+
+                        if cur_idx > 0:
+                            pairwise_frequencies[
+                                pretoken[cur_idx - 1 : cur_idx + 1]
+                            ] += pretoken_count
+                            changed_keys.append(pretoken[cur_idx - 1 : cur_idx + 1])
+                        if cur_idx + 1 < len(pretoken):
+                            pairwise_frequencies[
+                                pretoken[cur_idx : cur_idx + 2]
+                            ] += pretoken_count
+                            changed_keys.append(pretoken[cur_idx : cur_idx + 2])
+                    cur_idx += 1
+                pretokens[pretoken] = pretoken_count
+                for byte in pretoken:
+                    bytes_2_pretokens[byte].add(pretoken)
+            del pairwise_frequencies[top_token]
+
+            for key in changed_keys:
+                heapq.heappush(
+                    pairwise_frequencies_heap, (-pairwise_frequencies[key], key)
+                )
     return vocab, merges
 
 
@@ -237,9 +220,7 @@ class Tokenizer:
         )
 
     @classmethod
-    def train_from_file(
-        cls, filepath: str, vocab_size: int, special_tokens: List[str]
-    ):
+    def train_from_file(cls, filepath: str, vocab_size: int, special_tokens: List[str]):
         vocab, merges = train_bpe(filepath, vocab_size, special_tokens)
         return cls(vocab, merges, special_tokens)
 

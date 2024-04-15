@@ -1,10 +1,23 @@
 import os
+import time
 import typing
 from dataclasses import dataclass
+from contextlib import contextmanager
 
 import torch
 import numpy as np
 import numpy.typing as npt
+
+
+@contextmanager
+def timed_block(description="Block", logger=None):
+    print_fn = logger.debug if logger else print
+
+    print_fn(f"Starting {description}...")
+    start_time = time.time()
+    yield
+    end_time = time.time()
+    print_fn(f"{description} took {round(end_time - start_time, 3)} seconds")
 
 
 @dataclass
