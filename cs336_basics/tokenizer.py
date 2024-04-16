@@ -249,6 +249,7 @@ class Tokenizer:
                 ids.append(self._inv_vocab[chunk.encode("utf-8")])
                 continue
             for pretoken in re.finditer(PAT, chunk):
+                pretoken = pretoken.group(0)
                 pretoken = tuple(bytes((i,)) for i in pretoken.encode("utf-8"))
                 for pair in self._merges:
                     cur_idx = 0
