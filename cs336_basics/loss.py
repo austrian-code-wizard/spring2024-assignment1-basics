@@ -6,4 +6,5 @@ def cross_entropy(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
     nnl = -logits.gather(-1, targets.unsqueeze(1)).squeeze() + torch.log(
         torch.exp(logits).sum(-1)
     )
+    print(nnl.shape)
     return nnl.mean()

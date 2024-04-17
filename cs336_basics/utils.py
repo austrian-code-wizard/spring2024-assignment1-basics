@@ -5,9 +5,13 @@ from dataclasses import dataclass
 from contextlib import contextmanager
 
 import torch
+import random
 import numpy as np
 import numpy.typing as npt
 
+torch.manual_seed(0)
+np.random.seed(0)
+random.seed(0)
 
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
