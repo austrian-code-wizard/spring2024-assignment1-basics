@@ -2,6 +2,7 @@ import wandb
 import logging
 import argparse
 import numpy as np
+from tqdm import tqdm
 
 from cs336_basics.loss import cross_entropy
 from cs336_basics.tokenizer import Tokenizer
@@ -75,11 +76,12 @@ class Trainer:
                 "min_learning_rate": self.min_learning_rate,
                 "batch_size": self.batch_size,
                 "context_length": self.context_length,
+                "val_iters": self.val_iters,
             }
         )
         wandb.watch(self.model, log="all")
 
-        for iteration in range(iteration, self.num_iters):
+        for iteration in tqdm(range(iteration, self.num_iters)):
             if self.use_lr_schedule:
                 lr = learning_rate_schedule(
                     iteration,
@@ -102,7 +104,8 @@ class Trainer:
             gradient_clipping(self.model, self.max_grad_norm)
             self.optimizer.step()
 
-            wandb.log({"train_loss": loss.item()})
+            wandb.log({"train_loss": loss.item(), "learning_rate": self.optimizer.param_groups[0]["lr"]})
+            logger.debug(f"Iteration {iteration}: train_loss={loss.item()}")
 
             if iteration % self.val_every == 0:
                 self.model.eval()
@@ -115,11 +118,13 @@ class Trainer:
                     val_loss = cross_entropy(val_logits, val_targets).item()
                 val_loss /= self.val_iters
                 wandb.log({"val_loss": val_loss})
+                logger.debug(f"Iteration {iteration}: val_loss={val_loss}")
 
             if (iteration + 1) % self.checkpoint_every == 0:
                 save_checkpoint(
                     self.model, self.optimizer, iteration, f"checkpoints/{self.run_name}/{iteration}"
                 )
+                logger.debug(f"Saved checkpoint at iteration {iteration}")
 
         wandb.finish()
 
@@ -136,8 +141,8 @@ def main():
     parser.add_argument("--d_ff", type=int, required=True, help="Dimension of the feedforward network")
     parser.add_argument("--attn_pdrop", type=float, default=None, help="Attention dropout rate")
     parser.add_argument("--residual_pdrop", type=float, default=None, help="Residual dropout rate")
-    parser.add_argument("--model-checkpoint", type=str, help="Path to a model checkpoint")
-    parser.add_argument("--learning_rate", type=float, required=True, help="Learning rate")
+    parser.add_argument("--model-checkpoint", default=None, type=str, help="Path to a model checkpoint")
+    parser.add_argument("--learning_rate", default=1e-4, type=float, required=True, help="Learning rate")
     parser.add_argument("--use_lr_schedule", action="store_true", help="Use a learning rate schedule")
     parser.add_argument("--num_iters", type=int, required=True, help="Number of iterations")
     parser.add_argument("--val_every", type=int, required=True, help="Validate every N iterations")
@@ -162,6 +167,7 @@ def main():
     logger.debug(f"Loaded tokenizer with {tokenizer.vocab_size} tokens")
     train_dataset = np.load(args.train_path, mmap_mode="r")
     val_dataset = np.load(args.val_path, mmap_mode="r")
+    logger.debug(f"Loaded datasets")
 
     model = TransformerLM(
         vocab_size=tokenizer.vocab_size,
@@ -173,6 +179,7 @@ def main():
         attn_pdrop=args.attn_pdrop,
         residual_pdrop=args.residual_pdrop,
     ).to(DEVICE)
+    logger.debug(f"Initialized model")
 
     trainer = Trainer(
         run_name=args.run_name,
@@ -201,8 +208,11 @@ def main():
     else:
         iteration = 0
 
+    logger.info(f"Starting training from iteration {iteration}")
     trainer.train(iteration)
+    logger.info(f"Training complete")
     
     save_checkpoint(
         model, trainer.optimizer, iteration, f"checkpoints/{args.run_name}/final"
     )
+    logger.info(f"Saved final checkpoint")
