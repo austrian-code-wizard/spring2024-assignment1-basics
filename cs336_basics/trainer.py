@@ -122,7 +122,7 @@ class Trainer:
                             self.val_dataset, batch_size=self.batch_size, context_length=self.context_length, device=DEVICE
                         )
                         val_logits = self.model(val_values)
-                        val_loss = cross_entropy(val_logits, val_targets).item()
+                        val_loss += cross_entropy(val_logits, val_targets).item()
                 val_loss /= self.val_iters
                 wandb.log({"val_loss": val_loss})
                 logger.debug(f"Iteration {iteration}: val_loss={val_loss}")
