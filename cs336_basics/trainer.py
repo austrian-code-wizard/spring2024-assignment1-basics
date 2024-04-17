@@ -43,7 +43,7 @@ class Trainer:
         self.tokenizer = tokenizer
         self.model = model
         self.optimizer = AdamW(
-            model.parameters(), lr=learning_rate, weight_decay=weight_decay, betas=betas
+            model.parameters(), lr=learning_rate, weight_decay=weight_decay, betas=betas, eps=epsilon
         )
         self.lr = learning_rate
         self.min_learning_rate = min_learning_rate
@@ -204,7 +204,8 @@ def main():
         max_grad_norm=args.max_grad_norm,
         batch_size=args.batch_size,
         context_length=args.context_length,
-        val_iters=args.val_iters
+        val_iters=args.val_iters,
+        epsilon=args.epsilon
     )
 
     if args.model_checkpoint:

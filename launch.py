@@ -109,7 +109,7 @@ def main():
     elif args.command == "train":
         if args.dataset == "tiny":
             train_dataset = "/data/TinyStoriesV2-GPT4-train.bin"
-            val_dataset = "/data/TinyStoriesV2-GPT4-val.bin"
+            val_dataset = "/data/TinyStoriesV2-GPT4-valid.bin"
             tokenizer_path = "tiny10k"
             GB = 86
             time = "06:00:00"
