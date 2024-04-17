@@ -169,9 +169,9 @@ def main():
 
     tokenizer = Tokenizer.from_files(f"{args.tokenizer_path}/vocab.pkl", f"{args.tokenizer_path}/merges.pkl")
     logger.debug(f"Loaded tokenizer with {tokenizer.vocab_size} tokens")
-    train_dataset = np.load(args.train_path, mmap_mode="r")
-    val_dataset = np.load(args.val_path, mmap_mode="r")
-    logger.debug(f"Loaded datasets")
+    train_dataset = np.load(args.train_path, mmap_mode="r", allow_pickle=True)
+    val_dataset = np.load(args.val_path, mmap_mode="r", allow_pickle=True)
+    logger.debug("Loaded datasets")
 
     model = TransformerLM(
         vocab_size=tokenizer.vocab_size,
@@ -183,7 +183,7 @@ def main():
         attn_pdrop=args.attn_pdrop,
         residual_pdrop=args.residual_pdrop,
     ).to(DEVICE)
-    logger.debug(f"Initialized model")
+    logger.debug("Initialized model")
 
     trainer = Trainer(
         run_name=args.run_name,
@@ -214,12 +214,12 @@ def main():
 
     logger.info(f"Starting training from iteration {iteration}")
     trainer.train(iteration)
-    logger.info(f"Training complete")
+    logger.info("Training complete")
     
     save_checkpoint(
         model, trainer.optimizer, iteration, f"checkpoints/{args.run_name}/final"
     )
-    logger.info(f"Saved final checkpoint")
+    logger.info("Saved final checkpoint")
 
 if __name__ == "__main__":
     main()
