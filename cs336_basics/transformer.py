@@ -5,6 +5,7 @@ import typing
 import torch
 import numpy as np
 import numpy.typing as npt
+from cs336_basics.utils import DEVICE
 from torch.nn import Parameter, Linear, Embedding, Module, ModuleList
 
 
@@ -182,7 +183,7 @@ class TransformerLM(Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.dropout(
             self.token_embeddings(x)
-            + self.position_embeddings(torch.arange(x.shape[1]).to(self.device)).unsqueeze(0)
+            + self.position_embeddings(torch.arange(x.shape[1]).to(DEVICE)).unsqueeze(0)
         )
         for block in self.layers:
             x = block(x)
