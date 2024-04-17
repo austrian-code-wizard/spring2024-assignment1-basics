@@ -220,3 +220,6 @@ def main():
         model, trainer.optimizer, iteration, f"checkpoints/{args.run_name}/final"
     )
     logger.info(f"Saved final checkpoint")
+
+if __name__ == "__main__":
+    main()

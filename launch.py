@@ -29,8 +29,8 @@ train_script = """#!/bin/bash
 #SBATCH --cpus-per-task=4
 #SBATCH --mem={gb}G
 #SBATCH --time={time}
-#SBATCH --output=sbatch/{name}.out
-#SBATCH --error=sbatch/{name}.err
+#SBATCH --output=sbatch/{run_name}-train.out
+#SBATCH --error=sbatch/{run_name}-train.err
 #SBATCH --gres=gpu:1
 
 # Optional: activate a conda environment to use for this job
@@ -40,7 +40,7 @@ conda activate cs336_basics
 # Print current node
 echo "Running on $(hostname)"
 
-python3 cs336_basics/trainer.py --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate}
+python3 cs336_basics/trainer.py --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate} --batch_size {batch_size}
 """
 
 
@@ -108,8 +108,8 @@ def main():
         print("Launched tokenizer job")
     elif args.command == "train":
         if args.dataset == "tiny":
-            train_dataset = "inyStoriesV2-GPT4-train.bin"
-            val_dataset = "tinyStoriesV2-GPT4-val.bin"
+            train_dataset = "/data/TinyStoriesV2-GPT4-train.bin"
+            val_dataset = "/data/TinyStoriesV2-GPT4-val.bin"
             tokenizer_path = "tiny10k"
             GB = 86
             time = "06:00:00"
@@ -118,12 +118,12 @@ def main():
             batch_size = args.batch_size
             train_iters = tokens // (batch_size * context)
             min_lr = 1e-12
-            warmup_iters = train_iters * 0.1
+            warmup_iters = int(train_iters * 0.1)
             cosine_cycle_iters = train_iters - warmup_iters
             val_every = train_iters // 100
             checkpoint_every = train_iters // 100
             learning_rate = args.lr
-            name = args.run_name
+            run_name = args.run_name
         else:
             raise ValueError("Invalid dataset")
         with open("tmp.sh", "w") as f:
@@ -131,7 +131,7 @@ def main():
                 train_script.format(
                     gb=GB,
                     time=time,
-                    run_name=name,
+                    run_name=run_name,
                     train_path=train_dataset,
                     val_path=val_dataset,
                     tokenizer_path=tokenizer_path,
@@ -142,10 +142,11 @@ def main():
                     checkpoint_every=checkpoint_every,
                     warmup_iters=warmup_iters,
                     learning_rate=learning_rate,
+                    batch_size=batch_size,
                 )
             )
-        os.system("sbatch tmp.sh")
-        os.remove("tmp.sh")
+        #os.system("sbatch tmp.sh")
+        #os.remove("tmp.sh")
     else:
         print("Invalid command")
         exit(1)
