@@ -178,6 +178,10 @@ class Tokenizer:
         self._merges = merges
         self._special_tokens = special_tokens if special_tokens else []
 
+    @property
+    def vocab_size(self) -> int:
+        return len(self._vocab)
+
     @classmethod
     def from_files(
         cls,

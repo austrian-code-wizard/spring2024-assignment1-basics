@@ -9,6 +9,9 @@ import numpy as np
 import numpy.typing as npt
 
 
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+
 @contextmanager
 def timed_block(description="Block", logger=None):
     print_fn = logger.debug if logger else print
@@ -18,38 +21,6 @@ def timed_block(description="Block", logger=None):
     yield
     end_time = time.time()
     print_fn(f"{description} took {round(end_time - start_time, 3)} seconds")
-
-
-@dataclass
-class OptimizerArgs:
-    beta1: float
-    beta2: float
-    weight_decay: float
-    max_lr: float
-    min_lr: float
-    warmup_iters: int
-    cosine_cycle_iters: int
-
-
-@dataclass
-class ModelArgs:
-    context_length: int
-    num_layers: int
-    d_model: int
-    num_heads: int
-    d_ff: int
-    attn_pdrop: float | None = None
-    residual_pdrop: float | None = None
-
-
-@dataclass
-class TrainerArgs:
-    dataset_path: str
-
-
-@dataclass
-class TokenizerArgs:
-    tokenizer_path: str
 
 
 def get_batch(
