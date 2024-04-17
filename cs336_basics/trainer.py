@@ -107,7 +107,7 @@ class Trainer:
             logits = self.model(values)
             loss = cross_entropy(logits, targets)
             loss.backward()
-            gradient_clipping(self.model, self.max_grad_norm)
+            gradient_clipping(self.model.parameters(), self.max_grad_norm)
             self.optimizer.step()
 
             wandb.log({"train_loss": loss.item(), "learning_rate": self.optimizer.param_groups[0]["lr"]})
