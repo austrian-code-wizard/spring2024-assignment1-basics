@@ -225,44 +225,50 @@ class Tokenizer:
         return cls(vocab, merges, special_tokens)
 
     def encode(self, text: str) -> List[int]:
-        if self._special_tokens:
-            special_token_pattern = re.compile(
-                r"("
-                + "|".join(
-                    map(
-                        re.escape,
-                        sorted(
-                            self._special_tokens, key=lambda x: len(x), reverse=True
-                        ),
-                    )
-                )
-                + r")"
-            )
-            chunks = special_token_pattern.split(text)
-        else:
-            chunks = [text]
         ids = []
-        for chunk in chunks:
-            if chunk == "":
-                continue
-            if chunk in self._special_tokens:
-                ids.append(self._inv_vocab[chunk.encode("utf-8")])
-                continue
-            for pretoken in re.finditer(PAT, chunk):
-                pretoken = pretoken.group(0)
-                pretoken = tuple(bytes((i,)) for i in pretoken.encode("utf-8"))
-                for pair in self._merges:
-                    cur_idx = 0
-                    while cur_idx < len(pretoken) - 1:
-                        if pretoken[cur_idx : cur_idx + 2] == pair:
-                            pretoken = (
-                                *pretoken[:cur_idx],
-                                pair[0] + pair[1],
-                                *pretoken[cur_idx + 2 :],
-                            )
-                        else:
-                            cur_idx += 1
-                ids += [self._inv_vocab[token] for token in pretoken]
+        pos = 0
+        special_regex = re.compile(
+            "(" + "|".join(map(re.escape, sorted(self._special_tokens, key=lambda x: len(x), reverse=True))) + ")"
+        ) if self._special_tokens else None
+        while pos < len(text):
+            if self._special_tokens:
+                match = re.search(special_regex, text[pos:])
+                if match:
+                    start, end = match.span()
+                    start += pos
+                    end += pos
+                else:
+                    start, end = len(text), len(text)
+            else:
+                start, end = len(text), len(text)
+
+            chunk = text[pos:start]
+            if chunk:
+                for pretoken in re.finditer(PAT, chunk):
+                    pretoken = pretoken.group(0)
+                    pretoken = tuple(bytes((i,)) for i in pretoken.encode("utf-8"))
+                    bytes_present = set(pretoken)
+                    for pair in self._merges:
+                        if pair[0] not in bytes_present or pair[1] not in bytes_present:
+                            continue
+                        cur_idx = 0
+                        while cur_idx < len(pretoken) - 1:
+                            if pretoken[cur_idx:cur_idx + 2] == pair:
+                                pretoken = (
+                                    *pretoken[:cur_idx],
+                                    pair[0] + pair[1],
+                                    *pretoken[cur_idx + 2:],
+                                )
+                            else:
+                                cur_idx += 1
+                        bytes_present.add(pair[0] + pair[1])
+                    ids += [self._inv_vocab[token] for token in pretoken]
+
+            if start != end:
+                special_token = text[start:end]
+                if special_token in self._special_tokens:
+                    ids.append(self._inv_vocab[special_token.encode("utf-8")])
+            pos = end
         return ids
 
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
