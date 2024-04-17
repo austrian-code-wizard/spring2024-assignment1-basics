@@ -86,7 +86,7 @@ def scaled_dot_product_attention(
 
 class CausalMultiheadSelfAttention(Module):
     def __init__(
-        self, d_model: int, num_heads: int, attn_pdrop: float | None = None
+        self, d_model: int, num_heads: int, attn_pdrop: float | None = None, max_seq_len: int = 512
     ) -> None:
         super().__init__()
         self.d_model = d_model
@@ -100,6 +100,7 @@ class CausalMultiheadSelfAttention(Module):
         self.v_proj = Linear(d_k * num_heads, d_model, bias=False)
 
         self.output_proj = Linear(d_k * num_heads, d_model, bias=False)
+        self.mask = torch.triu(torch.ones((max_seq_len, max_seq_len)).bool(), diagonal=1).to(DEVICE)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -121,9 +122,8 @@ class CausalMultiheadSelfAttention(Module):
         keys = keys.view(B, S, self.num_heads, self.d_k).transpose(1, 2)
         values = values.view(B, S, self.num_heads, self.d_k).transpose(1, 2)
         # mask: S x S
-        mask = torch.triu(torch.ones((S, S)).bool(), diagonal=1).to(DEVICE)
         attn = scaled_dot_product_attention(
-            queries, keys, values, mask=mask, p_drop=self.attn_pdrop
+            queries, keys, values, mask=self.mask[:S,:S], p_drop=self.attn_pdrop
         )
         # attn: B x h x S x d_k
         attn = attn.transpose(1, 2).reshape(B, S, -1)
