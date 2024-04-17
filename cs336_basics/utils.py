@@ -33,7 +33,7 @@ def get_batch(
     for idx in start_indices:
         values.append(dataset[idx : idx + context_length].tolist())
         targets.append(dataset[idx + 1 : idx + context_length + 1].tolist())
-    return torch.tensor(values, device=device), torch.tensor(targets, device=device)
+    return torch.tensor(values, device=device).long(), torch.tensor(targets, device=device).long()
 
 
 def save_checkpoint(
