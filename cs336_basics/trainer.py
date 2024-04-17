@@ -169,8 +169,8 @@ def main():
 
     tokenizer = Tokenizer.from_files(f"{args.tokenizer_path}/vocab.pkl", f"{args.tokenizer_path}/merges.pkl")
     logger.debug(f"Loaded tokenizer with {tokenizer.vocab_size} tokens")
-    train_dataset = np.load(args.train_path, mmap_mode="r", allow_pickle=True)
-    val_dataset = np.load(args.val_path, mmap_mode="r", allow_pickle=True)
+    train_dataset = np.memmap(args.train_path, mode="r", dtype=np.uint16)
+    val_dataset = np.memmap(args.val_path, mode="r", dtype=np.uint16)
     logger.debug("Loaded datasets")
 
     model = TransformerLM(
