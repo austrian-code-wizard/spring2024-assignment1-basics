@@ -230,6 +230,8 @@ class Tokenizer:
         special_regex = re.compile(
             "(" + "|".join(map(re.escape, sorted(self._special_tokens, key=lambda x: len(x), reverse=True))) + ")"
         ) if self._special_tokens else None
+
+        cache = {}
         while pos < len(text):
             if self._special_tokens:
                 match = re.search(special_regex, text[pos:])
@@ -246,23 +248,26 @@ class Tokenizer:
             if chunk:
                 for pretoken in re.finditer(PAT, chunk):
                     pretoken = pretoken.group(0)
-                    pretoken = tuple(bytes((i,)) for i in pretoken.encode("utf-8"))
-                    bytes_present = set(pretoken)
-                    for pair in self._merges:
-                        if pair[0] not in bytes_present or pair[1] not in bytes_present:
-                            continue
-                        cur_idx = 0
-                        while cur_idx < len(pretoken) - 1:
-                            if pretoken[cur_idx:cur_idx + 2] == pair:
-                                pretoken = (
-                                    *pretoken[:cur_idx],
-                                    pair[0] + pair[1],
-                                    *pretoken[cur_idx + 2:],
-                                )
-                            else:
-                                cur_idx += 1
-                        bytes_present.add(pair[0] + pair[1])
-                    ids += [self._inv_vocab[token] for token in pretoken]
+                    pretoken_original = pretoken
+                    if pretoken_original not in cache:
+                        pretoken = tuple(bytes((i,)) for i in pretoken.encode("utf-8"))
+                        bytes_present = set(pretoken)
+                        for pair in self._merges:
+                            if pair[0] not in bytes_present or pair[1] not in bytes_present:
+                                continue
+                            cur_idx = 0
+                            while cur_idx < len(pretoken) - 1:
+                                if pretoken[cur_idx:cur_idx + 2] == pair:
+                                    pretoken = (
+                                        *pretoken[:cur_idx],
+                                        pair[0] + pair[1],
+                                        *pretoken[cur_idx + 2:],
+                                    )
+                                else:
+                                    cur_idx += 1
+                            bytes_present.add(pair[0] + pair[1])
+                        cache[pretoken_original] = [self._inv_vocab[token] for token in pretoken]
+                    ids += cache[pretoken_original]
 
             if start != end:
                 special_token = text[start:end]
