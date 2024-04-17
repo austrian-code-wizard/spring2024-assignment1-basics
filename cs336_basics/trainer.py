@@ -1,3 +1,4 @@
+import torch
 import wandb
 import logging
 import argparse
@@ -29,6 +30,7 @@ class Trainer:
         checkpoint_every: int,
         warmup_iters: int,
         betas: tuple[float, float],
+        epsilon: float,
         weight_decay: float,
         cosine_cycle_iters: int,
         min_learning_rate: float,
@@ -107,15 +109,16 @@ class Trainer:
             wandb.log({"train_loss": loss.item(), "learning_rate": self.optimizer.param_groups[0]["lr"]})
             logger.debug(f"Iteration {iteration}: train_loss={loss.item()}")
 
-            if iteration % self.val_every == 0:
+            if (iteration + 1) % self.val_every == 0:
                 self.model.eval()
                 val_loss = 0
-                for _ in range(self.val_iters):
-                    val_values, val_targets = get_batch(
-                        self.val_dataset, batch_size=self.batch_size, context_length=self.context_length, device=DEVICE
-                    )
-                    val_logits = self.model(val_values)
-                    val_loss = cross_entropy(val_logits, val_targets).item()
+                with torch.no_grad():
+                    for _ in range(self.val_iters):
+                        val_values, val_targets = get_batch(
+                            self.val_dataset, batch_size=self.batch_size, context_length=self.context_length, device=DEVICE
+                        )
+                        val_logits = self.model(val_values)
+                        val_loss = cross_entropy(val_logits, val_targets).item()
                 val_loss /= self.val_iters
                 wandb.log({"val_loss": val_loss})
                 logger.debug(f"Iteration {iteration}: val_loss={val_loss}")
@@ -135,28 +138,29 @@ def main():
     parser.add_argument("--train_path", type=str, required=True, help="Path to the training dataset")
     parser.add_argument("--val_path", type=str, required=True, help="Path to the validation dataset")
     parser.add_argument("--tokenizer_path", type=str, required=True, help="Path to the vocabulary")
-    parser.add_argument("--num_layers", type=int, required=True, help="Number of layers in the transformer model")
-    parser.add_argument("--d_model", type=int, required=True, help="Dimension of the model")
-    parser.add_argument("--num_heads", type=int, required=True, help="Number of attention heads")
-    parser.add_argument("--d_ff", type=int, required=True, help="Dimension of the feedforward network")
-    parser.add_argument("--attn_pdrop", type=float, default=None, help="Attention dropout rate")
-    parser.add_argument("--residual_pdrop", type=float, default=None, help="Residual dropout rate")
-    parser.add_argument("--model-checkpoint", default=None, type=str, help="Path to a model checkpoint")
-    parser.add_argument("--learning_rate", default=1e-4, type=float, required=True, help="Learning rate")
-    parser.add_argument("--use_lr_schedule", action="store_true", help="Use a learning rate schedule")
+    parser.add_argument("--cosine_cycle_iters", type=int, required=True, help="Number of iterations in the cosine cycle")
+    parser.add_argument("--min_learning_rate", type=float, required=True, help="Minimum learning rate")
     parser.add_argument("--num_iters", type=int, required=True, help="Number of iterations")
     parser.add_argument("--val_every", type=int, required=True, help="Validate every N iterations")
     parser.add_argument("--checkpoint_every", type=int, required=True, help="Checkpoint every N iterations")
     parser.add_argument("--warmup_iters", type=int, required=True, help="Number of warmup iterations")
-    parser.add_argument("--beta1", type=float, required=True, help="AdamW beta1")
-    parser.add_argument("--beta2", type=float, required=True, help="AdamW beta2")
-    parser.add_argument("--weight_decay", type=float, required=True, help="Weight decay")
-    parser.add_argument("--cosine_cycle_iters", type=int, required=True, help="Number of iterations in the cosine cycle")
-    parser.add_argument("--min_learning_rate", type=float, required=True, help="Minimum learning rate")
-    parser.add_argument("--max_grad_norm", type=float, required=True, help="Maximum gradient norm")
+    parser.add_argument("--learning_rate", type=float, required=True, help="Learning rate")
+    parser.add_argument("--num_layers", type=int, default=4, help="Number of layers in the transformer model")
+    parser.add_argument("--d_model", type=int, default=512, help="Dimension of the model")
+    parser.add_argument("--num_heads", type=int, default=16, help="Number of attention heads")
+    parser.add_argument("--d_ff", type=int, default=2048, help="Dimension of the feedforward network")
+    parser.add_argument("--attn_pdrop", type=float, default=0.05, help="Attention dropout rate")
+    parser.add_argument("--residual_pdrop", type=float, default=0.1, help="Residual dropout rate")
+    parser.add_argument("--model-checkpoint", default=None, type=str, help="Path to a model checkpoint")
+    parser.add_argument("--use_lr_schedule", action="store_true", default=True, help="Use a learning rate schedule")
+    parser.add_argument("--epsilon", type=float, default=1e-8, help="AdamW epsilon")
+    parser.add_argument("--beta1", type=float, default=0.9, help="AdamW beta1")
+    parser.add_argument("--beta2", type=float, default=0.999, help="AdamW beta2")
+    parser.add_argument("--weight_decay", type=float, default=0.001, help="Weight decay")
+    parser.add_argument("--max_grad_norm", type=float, default=1.0, help="Maximum gradient norm")
     parser.add_argument("--batch_size", type=int, required=True, help="Batch size")
-    parser.add_argument("--context_length", type=int, required=True, help="Context length")
-    parser.add_argument("--val_iters", type=int, required=True, help="Number of validation iterations")
+    parser.add_argument("--context_length", type=int, default=256, help="Context length")
+    parser.add_argument("--val_iters", type=int, default=100, help="Number of validation iterations")
     parser.add_argument("--log_level", type=str, default="debug", help="Logging level")
 
     args = parser.parse_args()
