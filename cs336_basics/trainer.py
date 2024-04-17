@@ -103,6 +103,9 @@ class Trainer:
             values, targets = get_batch(
                 self.train_dataset, batch_size=self.batch_size, context_length=self.context_length, device=DEVICE
             )
+            if len(values.shape) == 1:
+                values = values.unsqueeze(0)
+                targets = targets.unsqueeze(0)
             self.optimizer.zero_grad()
             logits = self.model(values)
             loss = cross_entropy(logits, targets)
@@ -121,6 +124,9 @@ class Trainer:
                         val_values, val_targets = get_batch(
                             self.val_dataset, batch_size=self.batch_size, context_length=self.context_length, device=DEVICE
                         )
+                        if len(val_values.shape) == 1:
+                            val_values = val_values.unsqueeze(0)
+                            val_targets = val_targets.unsqueeze(0)
                         val_logits = self.model(val_values)
                         val_loss += cross_entropy(val_logits, val_targets).item()
                 val_loss /= self.val_iters
