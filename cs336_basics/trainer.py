@@ -59,6 +59,9 @@ class Trainer:
         self.batch_size = batch_size
         self.context_length = context_length
         self.val_iters = val_iters
+        self.betas = betas
+        self.epsilon = epsilon
+        self.weight_decay = weight_decay
 
     def train(self, iteration: int = 0):
         wandb.init(
@@ -71,14 +74,15 @@ class Trainer:
                 "val_every": self.val_every,
                 "checkpoint_every": self.checkpoint_every,
                 "warmup_iters": self.warmup_iters,
-                "betas": self.optimizer.param_groups[0]["betas"],
-                "weight_decay": self.optimizer.param_groups[0]["weight_decay"],
                 "cosine_cycle_iters": self.cosine_cycle_iters,
                 "max_grad_norm": self.max_grad_norm,
                 "min_learning_rate": self.min_learning_rate,
                 "batch_size": self.batch_size,
                 "context_length": self.context_length,
                 "val_iters": self.val_iters,
+                "betas": self.betas,
+                "epsilon": self.epsilon,
+                "weight_decay": self.weight_decay
             }
         )
         wandb.watch(self.model, log="all")
