@@ -182,7 +182,7 @@ class TransformerLM(Module):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.dropout(
             self.token_embeddings(x)
-            + self.position_embeddings(torch.arange(x.shape[1])).unsqueeze(0)
+            + self.position_embeddings(torch.arange(x.shape[1]).to(self.device)).unsqueeze(0)
         )
         for block in self.layers:
             x = block(x)
