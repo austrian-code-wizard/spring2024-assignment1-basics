@@ -78,7 +78,7 @@ def learning_rate_schedule(
 def gradient_clipping(
     params: list[torch.nn.Parameter], max_l2_norm: float, eps: float = 10e-6
 ):
-    l2 = torch.sqrt(torch.sum(torch.stack([p.grad ** 2 for p in params if p.grad is not None])))
+    l2 = torch.sqrt(torch.sum(torch.stack([torch.sum(p.grad ** 2) for p in params if p.grad is not None])))
     if l2 >= max_l2_norm:
         for p in params:
             if p.grad is None:
