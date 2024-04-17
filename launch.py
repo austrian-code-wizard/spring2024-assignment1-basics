@@ -145,8 +145,8 @@ def main():
                     batch_size=batch_size,
                 )
             )
-        #os.system("sbatch tmp.sh")
-        #os.remove("tmp.sh")
+        os.system("sbatch tmp.sh")
+        os.remove("tmp.sh")
     else:
         print("Invalid command")
         exit(1)
