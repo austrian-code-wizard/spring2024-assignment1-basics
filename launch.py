@@ -40,7 +40,7 @@ conda activate cs336_basics
 # Print current node
 echo "Running on $(hostname)"
 
-python3 cs336_basics/trainer.py --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate} --batch_size {batch_size}
+python3 cs336_basics/trainer.py --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate} --batch_size {batch_size} --beta2 {beta2} --weight_decay {weight_decay}
 """
 
 
@@ -87,6 +87,12 @@ def main():
     train_parser.add_argument(
         "--lr", type=float, default=0.0001, help="Learning rate for training"
     )
+    train_parser.add_argument(
+        "--beta2", type=float, default=0.999, help="Beta2 for Adam optimizer"
+    )
+    train_parser.add_argument(
+        "--weight_decay", type=float, default=0.001, help="Weight decay for Adam optimizer"
+    )
 
     args = parser.parse_args()
 
@@ -124,6 +130,8 @@ def main():
             checkpoint_every = train_iters // 100
             learning_rate = args.lr
             run_name = args.run_name
+            beta2 = args.beta2
+            weight_decay = args.weight_decay
         else:
             raise ValueError("Invalid dataset")
         with open("tmp.sh", "w") as f:
@@ -143,6 +151,8 @@ def main():
                     warmup_iters=warmup_iters,
                     learning_rate=learning_rate,
                     batch_size=batch_size,
+                    beta2=beta2,
+                    weight_decay=weight_decay
                 )
             )
         os.system("sbatch tmp.sh")
