@@ -93,6 +93,12 @@ def main():
     train_parser.add_argument(
         "--weight_decay", type=float, default=0.001, help="Weight decay for Adam optimizer"
     )
+    train_parser.add_argument(
+        "--constant_iters", type=float, default=0.0, help="Number of constant learning rate iterations"
+    )
+    train_parser.add_argument(
+        "--min_lr", type=float, default=1e-12, help="Minimum learning rate"
+    )
 
     args = parser.parse_args()
 
@@ -123,9 +129,10 @@ def main():
             context = 256
             batch_size = args.batch_size
             train_iters = tokens // (batch_size * context)
-            min_lr = 1e-12
+            min_lr = args.min_lr
             warmup_iters = int(train_iters * 0.1)
-            cosine_cycle_iters = train_iters - warmup_iters
+            constant_iters = int(train_iters * args.constant_iters)
+            cosine_cycle_iters = train_iters - warmup_iters - constant_iters
             val_every = train_iters // 100
             checkpoint_every = train_iters // 100
             learning_rate = args.lr
