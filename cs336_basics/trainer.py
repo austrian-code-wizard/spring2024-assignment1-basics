@@ -106,6 +106,7 @@ class Trainer:
             self.optimizer.zero_grad()
             logits = self.model(values)
             loss = cross_entropy(logits, targets)
+            loss = loss.mean()
             loss.backward()
             gradient_clipping(self.model, self.max_grad_norm)
             self.optimizer.step()
