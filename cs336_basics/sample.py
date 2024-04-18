@@ -60,8 +60,6 @@ def main():
     parser.add_argument(
         "--top_p", type=float, default=None, help="Top-p sampling cutoff"
     )
-    args = parser.parse_args()
-
     parser.add_argument("--num_layers", type=int, default=4, help="Number of layers in the transformer model")
     parser.add_argument("--d_model", type=int, default=512, help="Dimension of the model")
     parser.add_argument("--num_heads", type=int, default=16, help="Number of attention heads")
@@ -69,6 +67,7 @@ def main():
     parser.add_argument("--attn_pdrop", type=float, default=0.05, help="Attention dropout rate")
     parser.add_argument("--residual_pdrop", type=float, default=0.1, help="Residual dropout rate")
     parser.add_argument("--context_length", type=int, default=256, help="Context length")
+    args = parser.parse_args()
 
     tokenizer = Tokenizer.from_files(f"{args.tokenizer_path}/vocab.pkl", f"{args.tokenizer_path}/merges.pkl", ["<|endoftext|>"])
 
