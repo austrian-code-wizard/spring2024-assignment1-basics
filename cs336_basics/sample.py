@@ -89,3 +89,7 @@ def main():
         model, tokenizer, args.input, args.max_tokens, args.temperature, args.top_p
     )
     print(generated_text)
+
+
+if __name__ == "__main__":
+    main()
