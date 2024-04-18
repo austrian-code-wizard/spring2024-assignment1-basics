@@ -40,7 +40,7 @@ conda activate cs336_basics
 # Print current node
 echo "Running on $(hostname)"
 
-python3 cs336_basics/trainer.py --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate} --batch_size {batch_size} --beta2 {beta2} --weight_decay {weight_decay}
+python3 cs336_basics/trainer.py --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate} --batch_size {batch_size} --beta2 {beta2} --weight_decay {weight_decay} --max_grad_norm {max_grad_norm}
 """
 
 
@@ -102,6 +102,9 @@ def main():
     train_parser.add_argument(
         "--warmup_iters", type=float, default=0.1, help="Number of warmup iterations"
     )
+    train_parser.add_argument(
+        "--max_grad_norm", type=float, default=1.0, help="Maximum gradient norm"
+    )
 
     args = parser.parse_args()
 
@@ -142,6 +145,7 @@ def main():
             run_name = args.run_name
             beta2 = args.beta2
             weight_decay = args.weight_decay
+            max_grad_norm = args.max_grad_norm
         else:
             raise ValueError("Invalid dataset")
         with open("tmp.sh", "w") as f:
@@ -162,7 +166,8 @@ def main():
                     learning_rate=learning_rate,
                     batch_size=batch_size,
                     beta2=beta2,
-                    weight_decay=weight_decay
+                    weight_decay=weight_decay,
+                    max_grad_norm=max_grad_norm,
                 )
             )
         os.system("sbatch tmp.sh")
