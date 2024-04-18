@@ -40,7 +40,7 @@ conda activate cs336_basics
 # Print current node
 echo "Running on $(hostname)"
 
-python3 cs336_basics/trainer.py {is_parallel} --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate} --batch_size {batch_size} --beta2 {beta2} --weight_decay {weight_decay} --max_grad_norm {max_grad_norm} --norm_type {norm_type}
+python3 cs336_basics/trainer.py --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate} --batch_size {batch_size} --beta2 {beta2} --weight_decay {weight_decay} --max_grad_norm {max_grad_norm} --norm_type {norm_type} {is_parallel}
 """
 
 
