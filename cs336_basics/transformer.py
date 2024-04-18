@@ -139,7 +139,8 @@ class TransformerBlock(Module):
         d_ff: int,
         attn_pdrop: float | None = None,
         residual_pdrop: float | None = None,
-        is_parallel: bool = False
+        is_parallel: bool = False,
+        norm_type: typing.Literal["post", "pre", "none"] = "pre"
     ) -> None:
         super().__init__()
         self.ln1 = RMSNorm(d_model)
@@ -148,13 +149,20 @@ class TransformerBlock(Module):
         self.dropout = torch.nn.Dropout(residual_pdrop)
         self.ffn = FFN(d_model, d_ff)
         self.is_parallel = is_parallel
+        self.norm_type = norm_type
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         x: B x S x d_model
         """
         if self.is_parallel:
+            assert self.norm_type == "pre", "Parallel transformer blocks only support pre-norm"
             return x + self.dropout(self.attn(self.ln1(x))) + self.dropout(self.ffn(self.ln2(x)))
+        if self.norm_type == "post":
+            y = self.ln1(x + self.dropout(self.attn(x)))
+            return self.ln2(y + self.dropout(self.ffn(y)))
+        if self.norm_type == "none":
+            return x + self.dropout(self.attn(x)) + self.dropout(self.ffn(x))
         y = x + self.dropout(self.attn(self.ln1(x)))
         return y + self.dropout(self.ffn(self.ln2(y)))
 
@@ -170,14 +178,15 @@ class TransformerLM(Module):
         d_ff: int,
         attn_pdrop: float | None = None,
         residual_pdrop: float | None = None,
-        is_parallel: bool = False
+        is_parallel: bool = False,
+        norm_type: typing.Literal["post", "pre", "none"] = "pre"
     ) -> None:
         super().__init__()
         self.token_embeddings = Embedding(vocab_size, d_model)
         self.position_embeddings = Embedding(context_length, d_model)
         self.layers = ModuleList(
             [
-                TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop, is_parallel)
+                TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop, is_parallel, norm_type)
                 for _ in range(num_layers)
             ]
         )

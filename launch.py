@@ -40,7 +40,7 @@ conda activate cs336_basics
 # Print current node
 echo "Running on $(hostname)"
 
-python3 cs336_basics/trainer.py {is_parallel} --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate} --batch_size {batch_size} --beta2 {beta2} --weight_decay {weight_decay} --max_grad_norm {max_grad_norm}
+python3 cs336_basics/trainer.py {is_parallel} --run_name {run_name} --train_path {train_path} --val_path {val_path} --tokenizer_path {tokenizer_path} --cosine_cycle_iters {cosine_cycle_iters} --min_learning_rate {min_learning_rate} --num_iters {num_iters} --val_every {val_every} --checkpoint_every {checkpoint_every} --warmup_iters {warmup_iters} --learning_rate {learning_rate} --batch_size {batch_size} --beta2 {beta2} --weight_decay {weight_decay} --max_grad_norm {max_grad_norm} --norm_type {norm_type}
 """
 
 
@@ -108,6 +108,9 @@ def main():
     parser.add_argument(
         "--is_parallel", action="store_true", default=False, help="Use parallel transformer blocks"
     )
+    parser.add_argument(
+        "--norm_type", type=str, default="pre", help="Type of normalization to use"
+    )
 
     args = parser.parse_args()
 
@@ -150,6 +153,7 @@ def main():
             weight_decay = args.weight_decay
             max_grad_norm = args.max_grad_norm
             is_parallel = "--is_parallel" if args.is_parallel else ""
+            norm_type = args.norm_type
         else:
             raise ValueError("Invalid dataset")
         with open("tmp.sh", "w") as f:
@@ -173,6 +177,7 @@ def main():
                     weight_decay=weight_decay,
                     max_grad_norm=max_grad_norm,
                     is_parallel=is_parallel,
+                    norm_type=norm_type
                 )
             )
         os.system("sbatch tmp.sh")
