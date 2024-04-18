@@ -155,8 +155,8 @@ def main():
             is_parallel = "--is_parallel" if args.is_parallel else ""
             norm_type = args.norm_type
         elif args.dataset == "owt":
-            train_dataset = "owt-train.bin"
-            val_dataset = "owt-valid.bin"
+            train_dataset = "/data/owt-train.bin"
+            val_dataset = "/data/owt-valid.bin"
             tokenizer_path = "owt32k"
             GB = 86
             time = "06:00:00"
