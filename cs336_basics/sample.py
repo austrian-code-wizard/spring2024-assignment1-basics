@@ -2,14 +2,14 @@ import torch
 import argparse
 from cs336_basics.tokenizer import Tokenizer
 from cs336_basics.transformer import TransformerLM, softmax
-from cs336_basics.utils import load_checkpoint
+from cs336_basics.utils import load_checkpoint, DEVICE
 
 
 def sample(model: TransformerLM, tokenizer: Tokenizer, text: str, max_tokens: int, temperature: float = None, top_p: float = None, eos_token: str = "<|endoftext|>") -> str:
     inputs = tokenizer.encode(text)
     inputs = torch.tensor(inputs).long()
     assert len(inputs.shape) == 1, "inputs must be a 1D tensor"
-    inputs = inputs.unsqueeze(0).to(model.device)
+    inputs = inputs.unsqueeze(0).to(DEVICE)
     model.eval()
     with torch.no_grad():
         for _ in range(max_tokens):
@@ -80,7 +80,7 @@ def main():
         d_ff=args.d_ff,
         attn_pdrop=args.attn_pdrop,
         residual_pdrop=args.residual_pdrop,
-    )
+    ).to(DEVICE)
 
     load_checkpoint(args.model_path, model)
 
