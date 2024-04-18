@@ -105,8 +105,8 @@ def main():
     train_parser.add_argument(
         "--max_grad_norm", type=float, default=1.0, help="Maximum gradient norm"
     )
-    train_parser.add_argument(
-        "--is_parallel", type=bool, default=False, help="Whether to use parallel transformer blocks"
+    parser.add_argument(
+        "--is_parallel", action="store_true", default=False, help="Use parallel transformer blocks"
     )
 
     args = parser.parse_args()
