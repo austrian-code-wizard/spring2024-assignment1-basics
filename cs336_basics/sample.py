@@ -73,7 +73,7 @@ def main():
     tokenizer = Tokenizer.from_files(f"{args.tokenizer_path}/vocab.pkl", f"{args.tokenizer_path}/merges.pkl", ["<|endoftext|>"])
 
     model = TransformerLM(
-        len(tokenizer.vocab),
+        len(tokenizer._vocab),
         context_length=args.context_length,
         num_layers=args.num_layers,
         d_model=args.d_model,
