@@ -99,6 +99,9 @@ def main():
     train_parser.add_argument(
         "--min_lr", type=float, default=1e-12, help="Minimum learning rate"
     )
+    train_parser.add_argument(
+        "--warmup_iters", type=int, default=0.1, help="Number of warmup iterations"
+    )
 
     args = parser.parse_args()
 
@@ -130,7 +133,7 @@ def main():
             batch_size = args.batch_size
             train_iters = tokens // (batch_size * context)
             min_lr = args.min_lr
-            warmup_iters = int(train_iters * 0.1)
+            warmup_iters = int(train_iters * args.warmup_iters)
             constant_iters = int(train_iters * args.constant_iters)
             cosine_cycle_iters = train_iters - warmup_iters - constant_iters
             val_every = train_iters // 100
