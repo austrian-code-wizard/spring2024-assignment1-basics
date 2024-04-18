@@ -170,13 +170,14 @@ class TransformerLM(Module):
         d_ff: int,
         attn_pdrop: float | None = None,
         residual_pdrop: float | None = None,
+        is_parallel: bool = False
     ) -> None:
         super().__init__()
         self.token_embeddings = Embedding(vocab_size, d_model)
         self.position_embeddings = Embedding(context_length, d_model)
         self.layers = ModuleList(
             [
-                TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop)
+                TransformerBlock(d_model, num_heads, d_ff, attn_pdrop, residual_pdrop, is_parallel)
                 for _ in range(num_layers)
             ]
         )
