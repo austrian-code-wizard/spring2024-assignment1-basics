@@ -154,6 +154,29 @@ def main():
             max_grad_norm = args.max_grad_norm
             is_parallel = "--is_parallel" if args.is_parallel else ""
             norm_type = args.norm_type
+        elif args.dataset == "owt":
+            train_dataset = "owt-train.bin"
+            val_dataset = "owt-valid.bin"
+            tokenizer_path = "owt32k"
+            GB = 86
+            time = "06:00:00"
+            tokens = 327680000
+            context = 256
+            batch_size = args.batch_size
+            train_iters = tokens // (batch_size * context)
+            min_lr = args.min_lr
+            warmup_iters = int(train_iters * args.warmup_iters)
+            constant_iters = int(train_iters * args.constant_iters)
+            cosine_cycle_iters = train_iters - warmup_iters - constant_iters
+            val_every = train_iters // 100
+            checkpoint_every = train_iters // 100
+            learning_rate = args.lr
+            run_name = args.run_name
+            beta2 = args.beta2
+            weight_decay = args.weight_decay
+            max_grad_norm = args.max_grad_norm
+            is_parallel = "--is_parallel" if args.is_parallel else ""
+            norm_type = args.norm_type
         else:
             raise ValueError("Invalid dataset")
         with open("tmp.sh", "w") as f:
