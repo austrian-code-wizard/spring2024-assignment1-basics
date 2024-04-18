@@ -19,7 +19,7 @@ def sample(model: TransformerLM, tokenizer: Tokenizer, text: str, max_tokens: in
                 logits /= temperature
             if top_p is not None:
                 sorted_logits, sorted_indices = torch.sort(logits, descending=True)
-                cumulative_probs = torch.cumsum(softmax(sorted_logits), dim=-1)
+                cumulative_probs = torch.cumsum(softmax(sorted_logits, -1), dim=-1)
                 cutoff_index = None
                 for i, prob in enumerate(cumulative_probs):
                     if prob > top_p:
@@ -28,14 +28,14 @@ def sample(model: TransformerLM, tokenizer: Tokenizer, text: str, max_tokens: in
                 assert cutoff_index is not None, "top_p is too high"
                 sorted_indices = sorted_indices[:cutoff_index]
                 sorted_logits = sorted_logits[:cutoff_index]
-                probs = softmax(sorted_logits)
+                probs = softmax(sorted_logits, -1)
                 sorted_idx = torch.multinomial(probs, num_samples=1)
                 next_token = sorted_indices[sorted_idx]
             else:
-                probs = softmax(logits)
+                probs = softmax(logits, -1)
                 next_token = torch.multinomial(probs, num_samples=1)
             inputs = torch.cat([inputs, next_token.unsqueeze(0)], dim=1)
-            if next_token.item() == tokenizer._inv_vocab[eos_token]:
+            if next_token.item() == tokenizer._inv_vocab[eos_token.encode("utf-8")]:
                 break
     return tokenizer.decode(inputs[0].tolist())
 
