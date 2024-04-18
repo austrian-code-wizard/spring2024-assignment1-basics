@@ -172,6 +172,7 @@ def main():
     parser.add_argument("--context_length", type=int, default=256, help="Context length")
     parser.add_argument("--val_iters", type=int, default=100, help="Number of validation iterations")
     parser.add_argument("--log_level", type=str, default="debug", help="Logging level")
+    parser.add_argument("--is_parallel", action="store_true", default=False, help="Use parallel transformer blocks")
 
     args = parser.parse_args()
 
@@ -192,6 +193,7 @@ def main():
         d_ff=args.d_ff,
         attn_pdrop=args.attn_pdrop,
         residual_pdrop=args.residual_pdrop,
+        is_parallel=args.is_parallel
     ).to(DEVICE)
     logger.debug("Initialized model")
 

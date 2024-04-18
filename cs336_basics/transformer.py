@@ -139,6 +139,7 @@ class TransformerBlock(Module):
         d_ff: int,
         attn_pdrop: float | None = None,
         residual_pdrop: float | None = None,
+        is_parallel: bool = False
     ) -> None:
         super().__init__()
         self.ln1 = RMSNorm(d_model)
@@ -146,11 +147,14 @@ class TransformerBlock(Module):
         self.attn = CausalMultiheadSelfAttention(d_model, num_heads, attn_pdrop)
         self.dropout = torch.nn.Dropout(residual_pdrop)
         self.ffn = FFN(d_model, d_ff)
+        self.is_parallel = is_parallel
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         x: B x S x d_model
         """
+        if self.is_parallel:
+            return x + self.dropout(self.attn(self.ln1(x))) + self.dropout(self.ffn(self.ln2(x)))
         y = x + self.dropout(self.attn(self.ln1(x)))
         return y + self.dropout(self.ffn(self.ln2(y)))
 
