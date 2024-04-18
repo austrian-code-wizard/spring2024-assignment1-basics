@@ -100,7 +100,7 @@ def main():
         "--min_lr", type=float, default=1e-12, help="Minimum learning rate"
     )
     train_parser.add_argument(
-        "--warmup_iters", type=int, default=0.1, help="Number of warmup iterations"
+        "--warmup_iters", type=float, default=0.1, help="Number of warmup iterations"
     )
 
     args = parser.parse_args()
