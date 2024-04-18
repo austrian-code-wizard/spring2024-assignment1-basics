@@ -7,7 +7,3 @@ def cross_entropy(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         torch.exp(logits).sum(-1)
     )
     return loss.mean()
-
-
-def perplexity(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-    return torch.exp(cross_entropy(logits, targets))

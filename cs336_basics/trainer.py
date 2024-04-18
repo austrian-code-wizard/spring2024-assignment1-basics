@@ -119,6 +119,7 @@ class Trainer:
             if (iteration + 1) % self.val_every == 0:
                 self.model.eval()
                 val_loss = 0
+                perplexity = 0
                 with torch.no_grad():
                     for _ in range(self.val_iters):
                         val_values, val_targets = get_batch(
@@ -128,9 +129,12 @@ class Trainer:
                             val_values = val_values.unsqueeze(0)
                             val_targets = val_targets.unsqueeze(0)
                         val_logits = self.model(val_values)
-                        val_loss += cross_entropy(val_logits, val_targets).item()
+                        loss = cross_entropy(val_logits, val_targets)
+                        val_loss += loss.item()
+                        perplexity += torch.exp(loss).item()
                 val_loss /= self.val_iters
-                wandb.log({"val_loss": val_loss})
+                perplexity /= self.val_iters
+                wandb.log({"val_loss": val_loss, "perplexity": perplexity})
                 logger.debug(f"Iteration {iteration}: val_loss={val_loss}")
 
             if (iteration + 1) % self.checkpoint_every == 0:
